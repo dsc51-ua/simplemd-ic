@@ -6,6 +6,7 @@
 #include <cmath>
 #include <vector>
 #include <cstdlib>
+#include <algorithm>
 
 using namespace std;
 using namespace PLMD;
@@ -360,10 +361,11 @@ void compute_rdf(const int natoms, const vector<Vector>& positions, const double
   int nbins = 100;
   double max_dist = min(cell[0], min(cell[1], cell[2])) / 2.0; // mitad de la caja
   double bin_size = max_dist / nbins;
+
   vector<double> histogram(nbins, 0);
   Vector distance, distance_pbc;
 
-  // O(n^2)
+  // O(n^2) contar pares de partículas en cada intervalo de distancia
   for(int i = 0; i < natoms - 1; i++){
     for(int j = i + 1; j < natoms; j++){
       for(int k = 0; k < 3; k++){
@@ -391,14 +393,26 @@ void compute_rdf(const int natoms, const vector<Vector>& positions, const double
   char filename[256];
   sprintf(filename, "rdf_step_%d.dat", istep);
   FILE* fp = fopen(filename, "w");
-  double density = natoms / (cell[0] * cell[1] * cell[2]);
 
-  for(int i = 0; i < nbins; i++){
-    double r = (i + 0.5) * bin_size;
-    double shell_volume = (4.0 / 3.0) * M_PI * (pow(r + bin_size, 3) - pow(r, 3));
+  if (fp == NULL) {
+    fprintf(stderr, "Error opening RDF output file\n");
+    return;
+  }
+
+  double volume = cell[0] * cell[1] * cell[2];
+  double density = static_cast<double>(natoms) / volume;
+
+  for (int i = 0; i < nbins; i++) {
+    double r_inner = i * bin_size;
+    double r_outer = (i + 1) * bin_size;
+    double r = (r_inner + r_outer) / 2.0;
+
+    double shell_volume = (4.0 / 3.0) * M_PI * (pow(r_outer, 3) - pow(r_inner, 3));
+
     double ideal_count = density * shell_volume * natoms;
+    double g_r = histogram[i] / ideal_count;
 
-    fprintf(fp, "%f %f\n", r, histogram[i] / (natoms * ideal_count));
+    fprintf(fp, "%f %f\n", r, g_r);
   }
 
   fclose(fp);
