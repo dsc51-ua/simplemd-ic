@@ -356,7 +356,53 @@ void write_statistics(const string & statfile,const int istep,const double tstep
   fprintf(write_statistics_fp,"%d %f %f %f %f %f\n",istep,istep*tstep,2.0*engkin/(3.0*natoms),engconf,engkin+engconf,engkin+engconf+engint);
 }
 
+void compute_rdf(const int natoms, const vector<Vector>& positions, const double cell[3], const int istep){
+  int nbins = 100;
+  double max_dist = min(cell[0], min(cell[1], cell[2])) / 2.0; // mitad de la caja
+  double bin_size = max_dist / nbins;
+  vector<double> histogram(nbins, 0);
+  Vector distance, distance_pbc;
 
+  // O(n^2)
+  for(int i = 0; i < natoms - 1; i++){
+    for(int j = i + 1; j < natoms; j++){
+      for(int k = 0; k < 3; k++){
+        distance[k] = positions[i][k] - positions[j][k];
+      }
+      pbc(cell, distance, distance_pbc);
+
+      double d2 = 0.0;
+      for(int k = 0; k < 3; k++){
+        d2 += distance_pbc[k] * distance_pbc[k];
+      }
+      double dist = sqrt(d2);
+
+      if(dist < max_dist){
+        int bin = static_cast<int>(dist / bin_size);
+
+        if (bin < nbins){
+          histogram[bin] += 2; // cada par cuenta para ambos átomos
+        }
+      }
+    }
+  }
+
+  // Escritura a disco (I/O)
+  char filename[256];
+  sprintf(filename, "rdf_step_%d.dat", istep);
+  FILE* fp = fopen(filename, "w");
+  double density = natoms / (cell[0] * cell[1] * cell[2]);
+
+  for(int i = 0; i < nbins; i++){
+    double r = (i + 0.5) * bin_size;
+    double shell_volume = (4.0 / 3.0) * M_PI * (pow(r + bin_size, 3) - pow(r, 3));
+    double ideal_count = density * shell_volume * natoms;
+
+    fprintf(fp, "%f %f\n", r, histogram[i] / (natoms * ideal_count));
+  }
+
+  fclose(fp);
+}
 
 public:
 int main(FILE*in,FILE*out){
@@ -505,9 +551,15 @@ int main(FILE*in,FILE*out){
   compute_engkin(natoms,masses,velocities,engkin);
 
 // eventually, write positions and statistics
-    if((istep+1)%nconfig==0) write_positions(trajfile,natoms,positions,cell,wrapatoms);
-    if((istep+1)%nstat==0)   write_statistics(statfile,istep+1,tstep,natoms,engkin,engconf,engint);
+    if((istep + 1) % nconfig == 0) {
+      write_positions(trajfile, natoms, positions, cell, wrapatoms);
 
+      compute_rdf(natoms, positions, cell, istep + 1); // tarea añadida
+    }
+
+    if((istep + 1) % nstat == 0) {
+      write_statistics(statfile, istep + 1, tstep, natoms, engkin, engconf, engint);
+    }
   }
 
   write_final_positions(outputfile,natoms,positions,cell,wrapatoms);
@@ -525,6 +577,3 @@ int main(){
   SimpleMD smd;
   return smd.main(stdin,stdout);
 }
-
-
-

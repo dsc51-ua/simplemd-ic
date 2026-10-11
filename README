@@ -1,15 +1,61 @@
-DESCRIPTION
+SimpleMD - Practica de Ingenieria de los Computadores
 
-This is simplemd, a very simple molecular dynamics software
-which can be used to simulate Lennard-Jones systems.
+Descripcion
+simplemd es un software muy sencillo de dinamica molecular disenado para simular sistemas de Lennard-Jones. Originalmente fue escrito con propositos didacticos para que su codigo fuera facilmente legible.
 
-It has been written with the purpose of teaching molecular dynamics
-and of being easily readable.
+Esta version ha sido adaptada, limpiada y ampliada para el estudio de paralelizacion (paralelismo funcional y de datos). Se ha estructurado el entorno en C++ y se ha introducido una nueva tarea de analisis pesado: el calculo de la Funcion de Distribucion Radial (RDF) durante la simulacion.
 
-TREE
+Estructura y Compilacion
+El proyecto contiene los codigos fuente en C++ (.cpp y .h) y los archivos de coordenadas iniciales (.xyz). La compilacion y ejecucion se gestionan mediante un Makefile.
 
-src/ source code along with a README file documenting input options
-xyz/ sample input files
-cpp/ c++ version of the code. this is the same code included in plumed2
-python/ python version of the code (STILL UNDER DEVELOPMENT)
+Comandos disponibles:
 
+make: compila el codigo y genera el ejecutable simplemd.x.
+
+make run: ejecuta la simulacion leyendo los parametros del archivo in.
+
+make clean: elimina los archivos binarios y los datos generados por la simulacion (.xyz, .dat).
+
+Creditos y Modificaciones
+Este proyecto es un fork modificado del repositorio original de Giovanni Bussi. Las entregas se evaluan conforme a las normas de integridad academica, por lo que se detalla la procedencia.
+Modificaciones realizadas para esta practica:   
+PDF
+
+Eliminacion de las ramas de Fortran y Python para aislar el nucleo en C++.
+
+Creacion de un Makefile para automatizar la compilacion y limpieza.
+
+Integracion de la funcion compute_rdf para calcular la Funcion de Distribucion Radial, anadiendo una nueva capa de complejidad computacional y oportunidades de paralelismo funcional.
+
+Opciones de Configuracion (Archivo in)
+
+Uso
+Para modificar los parametros de la simulacion, edita el archivo de texto in.
+Una vez configurado, lanza la simulacion ejecutando en la terminal:
+make run
+
+Parametros permitidos
+Las palabras clave que lee el simulador desde el archivo in son las siguientes (mantienen su nombre original en ingles para compatibilidad con el codigo fuente):
+
+tstep          ! Paso de tiempo de la simulacion (dt)
+temperature    ! Temperatura de referencia del termostato
+friction       ! Friccion para la dinamica de Langevin (para NVE, usar 0)
+listcutoff     ! Distancia de corte para construir la lista de vecinos
+forcecutoff    ! Distancia de corte para calcular las fuerzas de Lennard-Jones
+nstep          ! Numero total de pasos de la simulacion
+nconfig        ! Cada cuantos pasos se guardan las posiciones (.xyz) y se calcula el RDF
+nstat          ! Cada cuantos pasos se guardan las estadisticas de energia (.dat)
+maxneighbour   ! Numero maximo promedio de vecinos por atomo (tamano de memoria)
+idum           ! Semilla para el generador de numeros aleatorios
+wrapatoms      ! (T/F) Si es True, las coordenadas se guardan envueltas en la celda minima (pbc)
+outputfile     ! Nombre del archivo donde se guardara la configuracion final
+inputfile      ! Nombre del archivo con la configuracion inicial a leer
+
+Salida de datos
+
+Las trayectorias atomicas se escriben como multiples pasos en formato .xyz
+
+El calculo RDF genera un archivo rdf_step_X.dat en cada paso de guardado de configuracion.
+
+Las estadisticas de energia se escriben en un archivo de varias columnas:
+(paso) (tiempo-simulado) (temperatura-instantanea) (energia-configuracional) (energia-total) (cantidad-conservada)
